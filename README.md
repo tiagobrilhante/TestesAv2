@@ -65,3 +65,5 @@ Teste de performance em bancos de dados avalia o desempenho e a escalabilidade d
 - `run_testes.py`: Interface de menu para executar os testes
 - `test_database.py`: Contém todos os testes implementados
 - `identifier.sqlite`: Banco de dados SQLite utilizado nos testes
+
+Todo poder emana do código
