@@ -18,7 +18,7 @@ def setup_database():
     Fixture que executa uma vez por sessão de teste.
     Exclui tabelas existentes e cria todas as tabelas necessárias para os testes.
     """
-    connection = sqlite3.connect("../identifier.sqlite")
+    connection = sqlite3.connect("identifier.sqlite")
     cursor = connection.cursor()
 
     # Excluir tabelas existentes se existirem
@@ -68,7 +68,7 @@ def setup_database():
 @pytest.fixture
 def db_connection():
     """Cria e fecha conexão com banco de dados."""
-    connection = sqlite3.connect("../identifier.sqlite")
+    connection = sqlite3.connect("identifier.sqlite")
 
     # Habilitar suporte a chaves estrangeiras
     cursor = connection.cursor()
@@ -258,137 +258,98 @@ def test_transaction_rollback(db_connection, setup_database):
 # 2. Teste de consulta parametrizada (prevenção de SQL Injection)
 def test_parameterized_query(db_connection, setup_database):
     """Testa se consultas parametrizadas funcionam corretamente."""
-    print_action("Iniciando teste de consultas parametrizadas (prevenção de SQL Injection)")
     cursor = db_connection.cursor()
 
     # Insere um usuário usando parâmetros (forma segura)
     nome_usuario = "Maria'; DROP TABLE users; --"
-    print_action("Inserindo usuário com nome malicioso", f"Nome: '{nome_usuario}'")
-    print_action("Usando consulta parametrizada", "INSERT INTO users (name) VALUES (?)")
     cursor.execute("INSERT INTO users (name) VALUES (?)", (nome_usuario,))
     db_connection.commit()
-    print_action("Inserção concluída", "Usuário inserido com parâmetros de forma segura")
 
-    print_action("Verificando inserção", "Buscando usuário com nome malicioso")
     # Verifica se o usuário foi inserido corretamente
     cursor.execute("SELECT name FROM users WHERE name = ?", (nome_usuario,))
     result = cursor.fetchone()
-    print_action("Resultado da busca", f"Encontrado: {result}")
 
-    print_action("Verificando integridade", "Checando se a tabela users ainda existe")
     # Verifica se a tabela users ainda existe
     cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='users'")
     table_exists = cursor.fetchone()[0]
-    print_action("Resultado da verificação", f"Tabela existe: {table_exists == 1}")
 
     cursor.close()
 
-    print_action("Validando resultados")
     assert result is not None, "O usuário com nome especial deveria existir."
     assert result[0] == nome_usuario, "O nome do usuário deveria ser exatamente como inserido."
     assert table_exists == 1, "A tabela users deveria continuar existindo após a inserção."
-    print_action("Teste concluído com sucesso", "✅")
 
 # 3. Teste de consulta com LIKE
 def test_like_query(db_connection, setup_database):
     """Testa consultas usando operador LIKE."""
-    print_action("Iniciando teste de consulta com operador LIKE")
     cursor = db_connection.cursor()
 
-    print_action("Inserindo usuários de teste")
     # Insere vários usuários
     usuarios = ["João Silva", "Maria Silva", "José Souza", "Ana Santos"]
-    for i, usuario in enumerate(usuarios):
-        print_action(f"Inserindo usuário {i+1}/{len(usuarios)}", f"Nome: '{usuario}'")
+    for usuario in usuarios:
         cursor.execute("INSERT INTO users (name) VALUES (?)", (usuario,))
     db_connection.commit()
-    print_action("Inserção concluída", f"{len(usuarios)} usuários inseridos com sucesso")
 
-    print_action("Executando consulta com LIKE", "Buscando usuários com sobrenome 'Silva'")
     # Consulta usuários com sobrenome 'Silva'
     cursor.execute("SELECT COUNT(*) FROM users WHERE name LIKE '%Silva'")
     count = cursor.fetchone()[0]
-    print_action("Resultado da consulta", f"Encontrados: {count} usuários")
     cursor.close()
 
-    print_action("Validando resultado")
     assert count == 2, "Deveriam existir 2 usuários com sobrenome Silva."
-    print_action("Teste concluído com sucesso", "✅")
 
 # 4. Teste de deleção em cascata
 def test_cascade_delete(db_connection):
     """Testa deleção em cascata com ON DELETE CASCADE."""
-    print_action("Iniciando teste de deleção em cascata")
     cursor = db_connection.cursor()
 
-    print_action("Inserindo dados de teste", "Criando estrutura de pais e filhos")
     # Insere dados
-    print_action("Inserindo pais")
     cursor.execute("INSERT INTO parents (name) VALUES ('Pai1')")
     cursor.execute("INSERT INTO parents (name) VALUES ('Pai2')")
-
-    print_action("Inserindo filhos", "Associando filhos aos pais")
     cursor.execute("INSERT INTO children (parent_id, name) VALUES (1, 'Filho1')")
     cursor.execute("INSERT INTO children (parent_id, name) VALUES (1, 'Filho2')")
     cursor.execute("INSERT INTO children (parent_id, name) VALUES (2, 'Filho3')")
     cursor.execute("INSERT INTO children (parent_id, name) VALUES (2, 'Filho4')")
     db_connection.commit()
-    print_action("Dados inseridos com sucesso", "2 pais e 4 filhos")
 
-    print_action("Executando deleção em cascata", "Deletando Pai1 (id=1)")
     # Deleta o pai
     cursor.execute("DELETE FROM parents WHERE id = 1")
     db_connection.commit()
-    print_action("Deleção concluída", "Pai1 foi removido")
 
-    print_action("Verificando efeito cascata", "Contando filhos do Pai1 que deveriam ter sido removidos")
     # Verifica se os filhos foram deletados
     cursor.execute("SELECT COUNT(*) FROM children WHERE parent_id = 1")
     count = cursor.fetchone()[0]
-    print_action("Resultado da contagem", f"Filhos restantes: {count}")
     cursor.close()
 
-    print_action("Validando resultado")
     assert count == 0, "Todos os filhos deveriam ter sido deletados em cascata."
-    print_action("Teste concluído com sucesso", "✅")
 
 # 5. Teste de desempenho para operações em lote
 def test_batch_insert_performance(db_connection):
     """Testa o desempenho de inserções em lote vs individuais."""
-    print_action("Iniciando teste de performance de inserção em lote")
     cursor = db_connection.cursor()
 
-    print_action("Medindo tempo para inserções individuais", "Inserindo 100 registros um a um")
+
     # Mede tempo para inserções individuais
     start_time = time.time()
     for i in range(100):
         cursor.execute("INSERT INTO performance_test (value) VALUES (?)", (f"Value {i}",))
         db_connection.commit()
-        if i % 25 == 0 and i > 0:  # Mostrar progresso a cada 25 inserções
-            print_action("Progresso", f"Inseridos {i}/100 registros individualmente")
     individual_time = time.time() - start_time
-    print_action("Inserções individuais concluídas", f"Tempo total: {individual_time:.4f} segundos")
 
-    print_action("Limpando tabela para próximo teste")
     # Limpa tabela
     cursor.execute("DELETE FROM performance_test")
     db_connection.commit()
 
-    print_action("Medindo tempo para inserção em lote", "Inserindo 100 registros em uma única operação")
     # Mede tempo para inserção em lote
     start_time = time.time()
     values = [(f"Value {i}",) for i in range(100)]
     cursor.executemany("INSERT INTO performance_test (value) VALUES (?)", values)
     db_connection.commit()
     batch_time = time.time() - start_time
-    print_action("Inserção em lote concluída", f"Tempo total: {batch_time:.4f} segundos")
 
     cursor.close()
 
-    print_action("Comparando resultados", f"Individual: {individual_time:.4f}s vs Lote: {batch_time:.4f}s")
     # Verifica se a inserção em lote é mais rápida
     assert batch_time < individual_time, "Inserção em lote deveria ser mais rápida que inserções individuais."
-    print_action("Teste concluído com sucesso", "✅ Inserção em lote é mais rápida")
 
 """
 #################################################
